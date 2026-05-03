@@ -4,3 +4,4 @@ class FSM(StatesGroup):
     name = State()
     level = State()
     target = State()
+    practice = State()
