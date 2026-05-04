@@ -2,6 +2,9 @@ from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.types import Message, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from aiogram.fsm.context import FSMContext
+
+
+from service.check import client
 from states.user import FSM
 
 router = Router()
@@ -97,7 +100,29 @@ async def start_practice_save(message: Message, state:FSMContext):
         await message.answer('Напиши более длинное предложение!')
         return
 
-    await message.answer(f"Твое предложение:\n{user_text}\n\n"
-                         "✅ Выглядит неплохо! (Скоро добавлю AI проверку 🔥)"
-                         )
+    res = await client.chat.completions.create(
+        model='llama-3.1-8b-instant',
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are an English teacher. "
+                    "Your student is between (A0, A1, A2, B1, B2) level. "
+                    "1. Correct grammar mistakes. "
+                    "2. Explain mistakes simply. "
+                    "3. Rewrite correct sentence. "
+                    "4. Ask a follow-up question."
+                )
+            },
+            {
+                "role": "user",
+                "content": user_text
+            }
+        ]
+    )
+
+    ai_reply = res.choices[0].message.content
+
+    await message.answer(ai_reply)
+
     await state.clear()
