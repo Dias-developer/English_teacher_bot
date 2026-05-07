@@ -45,6 +45,11 @@ async def start(message: Message, state: FSMContext):
 
     await state.set_state(FSM.name)
 
+@router.message(Command('practice'))
+async def start_practice(message: Message, state: FSMContext):
+    await message.answer('Напиши мне предложение на английском!')
+    await state.set_state(FSM.practice)
+
 @router.message(FSM.name, F.text)
 async def process_name(message: Message, state: FSMContext):
     name = message.text
@@ -71,7 +76,7 @@ async def process_level(message: Message, state: FSMContext):
     await message.answer('Круто, Какая у тебя цель?')
     await state.set_state(FSM.target)
 
-@router.message(FSM.target, F.text)
+@router.message(FSM.target, F.text & ~F.text.startswith('/'))
 async def process_target(message: Message, state: FSMContext):
     await state.update_data(target=message.text)
 
@@ -80,17 +85,21 @@ async def process_target(message: Message, state: FSMContext):
     level = data['level']
     target = data['target']
 
-    await message.answer(f'Ваше имя: {name}\nВаш уровень: {level}\nВаша цель: {target}\n\n'
-                         'Если хотите попрактиковаться то введите /practice или нажмите кнопку в меню!', reply_markup=get_reply_keyboard())
+    await message.answer(
+        f'Ваше имя: {name}\nВаш уровень: {level}\nВаша цель: {target}\n\n'
+        'Если хотите попрактиковаться то введите /practice или нажмите кнопку в меню!',
+        reply_markup=get_reply_keyboard()
+    )
 
-@router.message(Command('practice'))
-async def start_practice(message: Message, state:FSMContext):
-    await message.answer('Напиши мне предложение на английском!')
-    await state.set_state(FSM.practice)
+    await state.clear()
 
-@router.message(FSM.practice, F.text)
-async def start_practice_save(message: Message, state:FSMContext):
+
+@router.message(FSM.practice, F.text & ~F.text.startswith('/'))
+async def start_practice_save(message: Message, state: FSMContext):
     user_text = message.text
+
+    data = await state.get_data()
+    level = data.get('level')
 
     if not is_english(user_text):
         await message.answer('Пиши на английском!')
@@ -107,7 +116,7 @@ async def start_practice_save(message: Message, state:FSMContext):
                 "role": "system",
                 "content": (
                     "You are an English teacher. "
-                    "Your student is between (A0, A1, A2, B1, B2) level. "
+                    f"Your student level is {level}. "
                     "1. Correct grammar mistakes. "
                     "2. Explain mistakes simply. "
                     "3. Rewrite correct sentence. "
@@ -124,5 +133,3 @@ async def start_practice_save(message: Message, state:FSMContext):
     ai_reply = res.choices[0].message.content
 
     await message.answer(ai_reply)
-
-    await state.clear()
